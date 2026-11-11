@@ -14,7 +14,8 @@ export function resolveLines(items, lines) {
       .map((e) => ({ name: e.name, price: e.price }));
     const unit = it.price + extras.reduce((s, e) => s + e.price, 0);
     const qty = Math.max(1, Math.min(50, Math.floor(Number(l.qty)) || 1));
-    if (!it.available) problems.push({ key: l.key, name: it.name });
+    const soldOut = it.soldOut ?? !it.available;
+    if (soldOut) problems.push({ key: l.key, name: it.name });
     resolved.push({
       key: l.key,
       itemId: it.id,
@@ -25,7 +26,7 @@ export function resolveLines(items, lines) {
       qty,
       unit,
       total: unit * qty,
-      available: !!it.available,
+      available: !soldOut,
     });
   }
   return { lines: resolved, problems };

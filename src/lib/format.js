@@ -54,3 +54,15 @@ export const slug = (s) =>
   String(s).toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "table";
 
 export const sum = (arr, fn = (x) => x) => arr.reduce((s, x) => s + fn(x), 0);
+
+export const UNITS = ["pcs", "kg", "g", "l", "ml", "portion"];
+export const ROLES = ["owner", "manager", "waiter", "kitchen"];
+export const ROLE_LABEL = { owner: "Owner", manager: "Manager", waiter: "Waiter", kitchen: "Kitchen" };
+export const PAY_METHODS = [
+  { id: "cash", label: "Cash" },
+  { id: "card", label: "Card" },
+  { id: "other", label: "Other" },
+];
+
+// Stock quantities may be fractional (e.g. 0.25 kg). Show up to 3 decimals, no trailing zeros.
+export const qtyText = (n) => String(Math.round(Number(n) * 1000) / 1000);

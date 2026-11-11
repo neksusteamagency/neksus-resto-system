@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
-import { getRole, setRole } from "../lib/auth";
+import { ensureDemoUser } from "../lib/auth";
 import { useTitle } from "../lib/hooks";
 
 // Side-by-side demo for presenting to clients: a live customer phone and a live kitchen
@@ -8,7 +8,7 @@ import { useTitle } from "../lib/hooks";
 export default function Showcase() {
   useTitle("Neksus Dine");
   // The embedded kitchen screen needs staff access for this demo session only.
-  useState(() => { if (!getRole()) setRole("kitchen"); return null; });
+  useState(() => { ensureDemoUser("kitchen"); return null; });
 
   return (
     <div className="page">
@@ -19,6 +19,7 @@ export default function Showcase() {
         </div>
         <nav className="bar-links" aria-label="Demo links">
           <Link to="/t/7">Customer menu</Link>
+          <Link to="/waiter">Waiter</Link>
           <Link to="/kitchen">Kitchen</Link>
           <Link to="/admin">Admin</Link>
         </nav>

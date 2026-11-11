@@ -1,0 +1,5 @@
+# Supabase CLI settings for this project.
+# `staff-pin` is called by devices that nobody has signed in on yet, so it does its own checks
+# (device secret, PIN, lockout) instead of requiring a signed-in user.
+[functions.staff-pin]
+verify_jwt = false

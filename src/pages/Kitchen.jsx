@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { useStore, store } from "../lib/store";
 import { STATIONS, STATUS_LABEL, waitText, minutesSince, startOfToday } from "../lib/format";
 import { useNow, useTitle, useToast, beep } from "../lib/hooks";
+import { kitchenTicketsHtml, printHtml } from "../lib/print";
+import { canOpen } from "../lib/auth";
 import { Toast, Empty } from "../components/ui";
 
 const COLS = [
@@ -13,7 +15,7 @@ const COLS = [
 const LATE_MIN = 15;
 const SOUND_KEY = "neksus-dine:kitchen-sound";
 
-export default function Kitchen({ onSignOut }) {
+export default function Kitchen({ user, onSignOut }) {
   const { orders, settings } = useStore();
   useTitle(`Kitchen · ${settings.name}`);
   const now = useNow(15000);
@@ -33,11 +35,18 @@ export default function Kitchen({ onSignOut }) {
   const seen = useRef(null);
   useEffect(() => {
     const ids = new Set(active.filter((o) => o.status === "new").map((o) => o.id));
-    if (seen.current && sound) {
-      for (const id of ids) if (!seen.current.has(id)) { beep(); break; }
+    if (seen.current) {
+      const fresh = active.filter((o) => o.status === "new" && !seen.current.has(o.id));
+      if (fresh.length && sound) beep();
+      // Auto-print needs the browser print dialog; use Chrome's --kiosk-printing for silent printing.
+      if (fresh.length && settings.kitchenAutoPrint) {
+        printHtml(kitchenTicketsHtml(fresh, settings));
+      }
     }
     seen.current = ids;
-  }, [active, sound]);
+  }, [active, sound, settings]);
+
+  const printTicket = (o) => printHtml(kitchenTicketsHtml(o, settings));
 
   const toggleSound = () => {
     const next = !sound;
@@ -54,16 +63,16 @@ export default function Kitchen({ onSignOut }) {
     return Math.max(1, Math.round(done.reduce((s, o) => s + (o.readyAt - o.createdAt), 0) / done.length / 60000));
   }, [orders]);
 
-  const move = (o, next) => {
-    const res = store.setOrderStatus(o.id, next);
+  const move = async (o, next) => {
+    const res = await store.setOrderStatus(o.id, next);
     if (!res.ok) { show(res.error); return; }
     show(`Order #${o.number} moved to ${STATUS_LABEL[next]}`, {
       action: { label: "Undo", run: () => store.setOrderStatus(o.id, res.previous, { force: true }) },
     });
   };
-  const cancel = (o) => {
+  const cancel = async (o) => {
     if (!window.confirm(`Cancel order #${o.number} (${o.tableLabel})? The customer will see it as cancelled.`)) return;
-    const res = store.setOrderStatus(o.id, "cancelled");
+    const res = await store.setOrderStatus(o.id, "cancelled");
     if (!res.ok) { show(res.error); return; }
     show(`Order #${o.number} cancelled`, {
       action: { label: "Undo", run: () => store.setOrderStatus(o.id, res.previous, { force: true }) },
@@ -100,7 +109,8 @@ export default function Kitchen({ onSignOut }) {
             <button className={sound ? "tool on" : "tool"} onClick={toggleSound} aria-pressed={sound}>
               Sound {sound ? "on" : "off"}
             </button>
-            {!embedded && <Link className="tool" to="/admin">Admin</Link>}
+            {!embedded && canOpen("waiter", user) && <Link className="tool" to="/waiter">Waiter</Link>}
+            {!embedded && canOpen("admin", user) && <Link className="tool" to="/admin">Admin</Link>}
             {!embedded && onSignOut && <button className="tool" onClick={onSignOut}>Sign out</button>}
           </div>
         </div>
@@ -127,7 +137,7 @@ export default function Kitchen({ onSignOut }) {
                         <strong>#{o.number}</strong>
                         <span>{waitText(o.createdAt, now)}</span>
                       </div>
-                      <p className="where">{o.tableLabel}</p>
+                      <p className="where">{o.tableLabel}{o.placedBy ? ` · ${o.placedBy}` : ""}</p>
                       <ul>
                         {lines.map((l, i) => (
                           <li key={i}>
@@ -145,6 +155,7 @@ export default function Kitchen({ onSignOut }) {
                         <button className={col.id === "ready" ? "act ready" : "act"} onClick={() => move(o, col.next)}>
                           {col.act}
                         </button>
+                        <button className="act ghost plain" onClick={() => printTicket(o)} aria-label={`Print ticket ${o.number}`}>Print</button>
                         {col.id !== "ready" && (
                           <button className="act ghost" onClick={() => cancel(o)} aria-label={`Cancel order ${o.number}`}>
                             Cancel
